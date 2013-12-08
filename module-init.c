@@ -58,6 +58,28 @@ static void hide_or_show(int new)
 	mutex_unlock(&module_mutex);
 }
 
+static void list_modules(void)
+{
+	struct module * mod;
+	struct list_head * pos;
+
+	while(!mutex_trylock(&module_mutex))
+		cpu_relax();
+
+	debug("List of available modules:\n");
+
+	list_for_each(pos, &THIS_MODULE->list) {
+		bool head = (unsigned long)pos >= MODULES_VADDR;
+
+		mod = container_of(pos, struct module, list);
+
+		debug("  pos:%pK mod:%pK [%s]\n", pos, \
+		      head ? mod : 0, head ? mod->name : "<- looking for");
+	}
+
+	mutex_unlock(&module_mutex);
+}
+
 /*
  * Sysctl state change stuff
  */
@@ -96,6 +118,8 @@ static struct ctl_table_header * header;
 
 int init_module(void)
 {
+	list_modules();
+
 	p_modules = get_modules_head();
 	if (!p_modules)
 		return -EINVAL;
